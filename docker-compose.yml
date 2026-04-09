@@ -1,0 +1,11 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Hot-reload in dev: mount source over the container copy
+      - .:/app
+    restart: unless-stopped

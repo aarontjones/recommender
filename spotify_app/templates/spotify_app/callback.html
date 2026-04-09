@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Authenticating…</title>
+    <style>
+        body {
+            background: #0a0a0a;
+            color: #f0f0f0;
+            font-family: 'DM Mono', monospace, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-size: 0.85rem;
+            letter-spacing: 0.04em;
+        }
+        p { color: #6b6b6b; }
+    </style>
+</head>
+<body>
+    <p id="msg">Authenticating…</p>
+
+    <script>
+        (function () {
+            const code  = "{{ code }}";
+            const state = "{{ state }}";
+            const error = "{{ error }}";
+
+            if (error) {
+                document.getElementById("msg").textContent = "Authentication cancelled.";
+                setTimeout(() => window.close(), 1200);
+                return;
+            }
+
+            if (!code) {
+                document.getElementById("msg").textContent = "No code received.";
+                return;
+            }
+
+            // Try postMessage to opener first, with retries to handle
+            // cases where the opener hasn't finished loading yet
+            let attempts = 0;
+            const maxAttempts = 10;
+
+            function tryPostMessage() {
+                attempts++;
+                if (window.opener && !window.opener.closed) {
+                    try {
+                        window.opener.postMessage(
+                            { type: "spotify_auth_code", code, state },
+                            window.location.origin
+                        );
+                        window.close();
+                        return;
+                    } catch (e) {
+                        // opener exists but postMessage failed — fall through
+                    }
+                }
+
+                if (attempts < maxAttempts) {
+                    // Retry after a short delay
+                    setTimeout(tryPostMessage, 150);
+                } else {
+                    // All retries exhausted — use fallback:
+                    // navigate the OPENER to /?code=... then close this popup
+                    if (window.opener && !window.opener.closed) {
+                        window.opener.location.href = `/?code=${encodeURIComponent(code)}`;
+                        setTimeout(() => window.close(), 300);
+                    } else {
+                        // Last resort: navigate this window to the main page
+                        window.location.href = `/?code=${encodeURIComponent(code)}`;
+                    }
+                }
+            }
+
+            tryPostMessage();
+        })();
+    </script>
+</body>
+</html>

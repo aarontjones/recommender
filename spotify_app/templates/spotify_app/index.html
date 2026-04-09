@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spotify Connect</title>
+    {% load static %}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --green: #1DB954;
+            --green-dim: #158a3e;
+            --green-glow: rgba(29, 185, 84, 0.25);
+            --dark: #0a0a0a;
+            --surface: #111111;
+            --border: rgba(255,255,255,0.07);
+            --text: #f0f0f0;
+            --muted: #6b6b6b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--dark);
+            font-family: 'DM Mono', monospace;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Subtle background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+            pointer-events: none;
+        }
+
+        /* Glowing orb */
+        body::after {
+            content: '';
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--green-glow) 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        .card {
+            position: relative;
+            z-index: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            box-shadow: 0 0 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+            animation: fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo-wrap {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--green);
+            margin-bottom: 1.5rem;
+            box-shadow: 0 0 30px var(--green-glow);
+        }
+
+        .logo-wrap svg { width: 34px; height: 34px; fill: #000; }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 0.78rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
+        }
+
+        #connect-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 14px 20px;
+            background: var(--green);
+            color: #000;
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.02em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+        }
+
+        #connect-btn:hover {
+            background: #1ed760;
+            box-shadow: 0 0 24px var(--green-glow);
+            transform: translateY(-1px);
+        }
+
+        #connect-btn:active { transform: translateY(0); }
+
+        #connect-btn svg { width: 20px; height: 20px; fill: #000; flex-shrink: 0; }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 1.5rem 0;
+            color: var(--muted);
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .scopes {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .scope-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.73rem;
+            color: var(--muted);
+        }
+
+        .scope-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+
+        /* Profile card — hidden until auth */
+        #profile-card {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            animation: fadeUp 0.4s ease both;
+        }
+
+        #profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--green);
+            box-shadow: 0 0 20px var(--green-glow);
+        }
+
+        #profile-name {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 800;
+        }
+
+        #profile-email {
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            padding: 5px 14px;
+            background: rgba(29, 185, 84, 0.12);
+            border: 1px solid rgba(29, 185, 84, 0.3);
+            border-radius: 100px;
+            color: var(--green);
+            font-size: 0.72rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .badge::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: blink 1.4s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        #status-msg {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.75rem;
+            min-height: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" id="main-card">
+
+        <!-- Connect View -->
+        <div id="connect-view">
+            <div class="logo-wrap">
+                <!-- Spotify SVG icon inline -->
+                <svg viewBox="0 0 168 168" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M84 0C37.6 0 0 37.6 0 84s37.6 84 84 84 84-37.6 84-84S130.4 0 84 0zm38.5 121.2c-1.5 2.5-4.8 3.3-7.3 1.7-20-12.2-45.2-15-74.9-8.2-2.9.7-5.7-1.1-6.4-3.9-.7-2.9 1.1-5.7 3.9-6.4 32.5-7.4 60.4-4.2 82.9 9.5 2.5 1.6 3.3 4.8 1.8 7.3zm10.3-22.8c-1.9 3.1-6 4.1-9.1 2.2-22.9-14.1-57.8-18.2-84.9-9.9-3.4 1-7-0.9-8-4.3-1-3.4.9-7 4.3-8 31-9.4 69.5-4.8 95.6 11.3 3.1 1.9 4.1 6 2.1 8.7zm.9-23.7c-27.5-16.3-72.8-17.8-99-9.8-4.1 1.2-8.4-1.1-9.6-5.2-1.2-4.1 1.1-8.4 5.2-9.6 30.1-9.1 80.2-7.4 111.8 11.3 3.7 2.2 4.9 7 2.7 10.7-2.2 3.6-7 4.8-10.7 2.6h-.4z"/>
+                </svg>
+            </div>
+
+            <h1>Connect Spotify</h1>
+            <p class="subtitle">OAuth 2.0 · Authorization Code Flow</p>
+
+            <button id="connect-btn">
+                <svg viewBox="0 0 168 168" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M84 0C37.6 0 0 37.6 0 84s37.6 84 84 84 84-37.6 84-84S130.4 0 84 0zm38.5 121.2c-1.5 2.5-4.8 3.3-7.3 1.7-20-12.2-45.2-15-74.9-8.2-2.9.7-5.7-1.1-6.4-3.9-.7-2.9 1.1-5.7 3.9-6.4 32.5-7.4 60.4-4.2 82.9 9.5 2.5 1.6 3.3 4.8 1.8 7.3zm10.3-22.8c-1.9 3.1-6 4.1-9.1 2.2-22.9-14.1-57.8-18.2-84.9-9.9-3.4 1-7-0.9-8-4.3-1-3.4.9-7 4.3-8 31-9.4 69.5-4.8 95.6 11.3 3.1 1.9 4.1 6 2.1 8.7zm.9-23.7c-27.5-16.3-72.8-17.8-99-9.8-4.1 1.2-8.4-1.1-9.6-5.2-1.2-4.1 1.1-8.4 5.2-9.6 30.1-9.1 80.2-7.4 111.8 11.3 3.7 2.2 4.9 7 2.7 10.7-2.2 3.6-7 4.8-10.7 2.6h-.4z"/>
+                </svg>
+                Connect with Spotify
+            </button>
+
+            <div class="divider">permissions requested</div>
+
+            <div class="scopes">
+                <div class="scope-item"><span class="scope-dot"></span>user-read-private</div>
+                <div class="scope-item"><span class="scope-dot"></span>user-read-email</div>
+            </div>
+        </div>
+
+        <!-- Profile View (shown after auth) -->
+        <div id="profile-card">
+            <img id="profile-avatar" src="" alt="Profile Picture" />
+            <p id="profile-name"></p>
+            <p id="profile-email"></p>
+            <span class="badge">Connected to Spotify</span>
+        </div>
+
+        <p id="status-msg"></p>
+    </div>
+
+    <script>
+        const CLIENT_ID = "{{ spotify_client_id }}";
+        const REDIRECT_URI = "{{ spotify_redirect_uri }}";
+        const SCOPES = "{{ spotify_scopes }}";
+
+        function genRandomString(length) {
+            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+            return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+        }
+
+        function getSpotifyAuthURL() {
+            const params = new URLSearchParams({
+                client_id: CLIENT_ID,
+                response_type: "code",
+                redirect_uri: REDIRECT_URI,
+                scope: SCOPES,
+                state: genRandomString(16),
+                show_dialog: "true"
+            });
+            return `https://accounts.spotify.com/authorize?${params}`;
+        }
+
+        function openAuthPopup() {
+            const w = 480, h = 640;
+            const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
+            const top  = Math.round(window.screenY + (window.outerHeight - h) / 2);
+            const popup = window.open(
+                getSpotifyAuthURL(), "SpotifyAuth",
+                `width=${w},height=${h},left=${left},top=${top},resizable=no,scrollbars=yes`
+            );
+            if (!popup) {
+                setStatus("Popup blocked — please allow popups for this site.");
+            }
+        }
+
+        function setStatus(msg) {
+            document.getElementById("status-msg").textContent = msg;
+        }
+
+        function renderProfile(profile) {
+            document.getElementById("connect-view").style.display = "none";
+            const card = document.getElementById("profile-card");
+            card.style.display = "flex";
+
+            if (profile.images && profile.images.length > 0) {
+                document.getElementById("profile-avatar").src = profile.images[0].url;
+                document.getElementById("profile-avatar").style.display = "block";
+            } else {
+                document.getElementById("profile-avatar").style.display = "none";
+            }
+
+            document.getElementById("profile-name").textContent = profile.display_name;
+            document.getElementById("profile-email").textContent = profile.email;
+        }
+
+        document.getElementById("connect-btn").addEventListener("click", openAuthPopup);
+
+        // Core: exchange a code for a token then render the profile
+        async function handleAuthCode(code) {
+            setStatus("Exchanging token…");
+            try {
+                const tokenRes = await fetch("/api/spotify/token/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ code })
+                });
+
+                if (!tokenRes.ok) throw new Error("Token exchange failed");
+                const { access_token } = await tokenRes.json();
+
+                setStatus("Fetching profile…");
+                const profileRes = await fetch("https://api.spotify.com/v1/me", {
+                    headers: { Authorization: `Bearer ${access_token}` }
+                });
+
+                if (!profileRes.ok) throw new Error("Profile fetch failed");
+                const profile = await profileRes.json();
+
+                renderProfile(profile);
+                setStatus("");
+
+                // Clean the ?code param out of the URL without reloading
+                window.history.replaceState({}, document.title, "/");
+            } catch (err) {
+                setStatus("Error: " + err.message);
+                console.error(err);
+            }
+        }
+
+        // Path 1: code arrives via postMessage from the popup
+        window.addEventListener("message", async (event) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data?.type !== "spotify_auth_code" || !event.data.code) return;
+            await handleAuthCode(event.data.code);
+        });
+
+        // Path 2: fallback — Spotify redirected the popup back to /,
+        // so the code lands as a query param on this page instead
+        (async () => {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get("code");
+            if (code) await handleAuthCode(code);
+        })();
+    </script>
+</body>
+</html>
